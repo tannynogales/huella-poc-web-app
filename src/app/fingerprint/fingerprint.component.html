@@ -1,0 +1,8 @@
+<h1>Fingerprint Capture</h1>
+@if (fingerprint()) {
+<div>
+  <img [src]="'data:image/png;base64,' + fingerprint()" alt="Fingerprint" />
+</div>
+} @if (error()) {
+<div class="error">{{ error() }}</div>
+}
