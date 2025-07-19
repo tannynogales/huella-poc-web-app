@@ -6,34 +6,45 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
   templateUrl: './fingerprint.component.html',
   styleUrl: './fingerprint.component.scss',
 })
-export class FingerprintComponent implements OnInit, OnDestroy {
- fingerprint = signal<string | null>(null);
-  error = signal<string | null>(null);
-  private ws!: WebSocket;
+export class FingerprintComponent  {
+ private ws: WebSocket | undefined;
+  fingerprintBase64: string | null = null;
+  error: string | null = null;
+  capturing = false;
 
-  ngOnInit() {
-    console.log('Conectando al WebSocket...');
+  constructor() {
     this.ws = new WebSocket('ws://localhost:4001');
 
-    this.ws.onopen = () => console.log('WebSocket abierto');
-    this.ws.onmessage = (msg) => {
-      console.log('Mensaje recibido:', msg.data);
-      const parsed = JSON.parse(msg.data);
-      if (parsed.event === 'finger-captured') {
-        this.fingerprint.set(parsed.data);
-      } else if (parsed.event === 'error') {
-        this.error.set(parsed.message);
+    this.ws.onopen = () => {
+      console.log('[WS] Conectado');
+    };
+
+    this.ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      if (message.event === 'fingerprint') {
+        this.fingerprintBase64 = message.data;
+        this.error = null;
+        this.capturing = false;
+      } else if (message.event === 'error') {
+        this.error = message.message;
+        this.fingerprintBase64 = null;
+        this.capturing = false;
       }
     };
 
-    this.ws.onerror = (err) => {
-      console.error('Error WebSocket:', err);
-      this.error.set('Error en la conexión WebSocket');
+    this.ws.onclose = () => {
+      console.log('[WS] Desconectado');
     };
   }
 
-  ngOnDestroy() {
-    console.log('Cerrando WebSocket');
-     if (this.ws) this.ws.close();
-   }
+  captureFingerprint() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('[WS] Enviando solicitud de captura...');
+      this.capturing = true;
+      this.ws.send(JSON.stringify({ command: 'capture' }));
+    } else {
+      this.error = 'WebSocket no está conectado';
+    }
+  }
 }
